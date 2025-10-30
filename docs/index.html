@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>DiagramForge — Documentation</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial; color:#172B4D; line-height:1.5; padding:24px; max-width:1000px; margin:0 auto; }
+    header { border-bottom:1px solid #e6eef8; padding-bottom:16px; margin-bottom:20px; }
+    h1 { margin:0 0 8px 0; font-size:28px; }
+    h2 { color:#0b5fff; font-size:18px; margin-top:24px; }
+    p { margin: 10px 0; }
+    pre { background:#f6f9ff; border:1px solid #e1ecff; padding:12px; overflow:auto; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", monospace; font-size:13px; }
+    .note { background:#fff8e1; border-left:4px solid #ffb300; padding:8px 12px; margin:12px 0; }
+    .muted { color:#6b778c; font-size:13px; }
+    a { color:#0b5fff; text-decoration:none; }
+    footer { margin-top:36px; border-top:1px solid #e6eef8; padding-top:14px; color:#6b778c; font-size:13px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>DiagramForge — Documentation</h1>
+    <p class="muted">Render text-based diagrams into SVG inside Confluence. This page documents macro usage, global settings, examples and troubleshooting.</p>
+  </header>
+
+  <section>
+    <h2>Overview</h2>
+    <p>DiagramForge converts user-provided diagram definitions into production-ready SVG by sending the diagram type and diagram source to a Kroki-compatible rendering endpoint. Rendered SVG is embedded in the Confluence page.</p>
+    <p>Rendering endpoint is configurable. You can use <code>https://kroki.io</code> (public service) or a self-hosted Kroki instance for enterprise control.</p>
+  </section>
+
+  <section>
+    <h2>Installation</h2>
+    <p>Install DiagramForge from Atlassian Marketplace into your Confluence Cloud instance and grant the requested scopes. After installation, administrators can configure global settings (Kroki endpoint).</p>
+  </section>
+
+  <section>
+    <h2>Macro usage</h2>
+    <p>The macro accepts two parameters:</p>
+    <ul>
+      <li><strong>diagramType</strong> — the diagram renderer type (examples: <code>mermaid</code>, <code>plantuml</code>, <code>graphviz</code>, <code>d2</code>, etc.). Use the Kroki-compatible type name.</li>
+      <li><strong>diagramCode</strong> — the diagram source code (plain text). This is the text you would normally write in Mermaid, PlantUML, Graphviz, etc.</li>
+    </ul>
+
+    <p>Typical flow:</p>
+    <ol>
+      <li>Insert the DiagramForge macro on a Confluence page.</li>
+      <li>Choose the <code>diagramType</code> or leave it for auto-detection (if supported).</li>
+      <li>Paste the <code>diagramCode</code> into the macro editor.</li>
+      <li>Save the macro — DiagramForge sends the code to the configured Kroki endpoint, receives an SVG and embeds it in the page.</li>
+    </ol>
+
+    <div class="note">
+      <strong>Privacy note:</strong> diagram source is transmitted to the configured Kroki endpoint at render time. If you require full data control, configure a self-hosted Kroki instance in Global Settings.
+    </div>
+  </section>
+
+  <section>
+    <h2>Global settings</h2>
+    <p>Administrators can configure DiagramForge global settings from the App configuration page inside Confluence. The key setting is:</p>
+    <pre><code>Kroki endpoint URL: https://kroki.io
+(Or your self-hosted Kroki endpoint, e.g. https://kroki.internal.example.com)</code></pre>
+    <p>Recommendations:</p>
+    <ul>
+      <li>Use <code>https://kroki.io</code> for quick start/testing.</li>
+      <li>Use a self-hosted Kroki for confidential or regulated environments to ensure diagram source never leaves your network.</li>
+      <li>Ensure the endpoint supports HTTPS and valid TLS certificates.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Examples</h2>
+
+    <h3>ER diagram (Mermaid)</h3>
+    <pre><code>erDiagram
+    CUSTOMER {
+      string id PK
+      string name
+      string email
+    }
+    ORDER {
+      string id PK
+      date created
+      float total
+    }
+    CUSTOMER ||--o{ ORDER : places
+    ORDER ||--|{ LINE_ITEM : contains
+    CUSTOMER }|..|{ DELIVERY_ADDRESS : uses</code></pre>
+
+    <h3>Architecture (C4 fragment — PlantUML)</h3>
+    <pre><code>@startuml
+!define C4P https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master
+!includeurl C4P/C4_Context.puml
+!includeurl C4P/C4_Container.puml
+
+Person(customer, "Customer", "A person who places orders")
+System_Boundary(orderSystem, "Order System") {
+  Container(webapp, "Web Application", "React + Node", "Customer-facing UI")
+  Container(api, "Order API", "Node/Express", "API for orders")
+  ContainerDb(db, "Postgres", "Database")
+}
+Rel(customer, webapp, "Uses")
+Rel(webapp, api, "Calls API")
+Rel(api, db, "Reads/Writes")
+@enduml</code></pre>
+
+    <h3>Sequence diagram (Mermaid)</h3>
+    <pre><code>sequenceDiagram
+    participant Customer
+    participant WebApp
+    participant OrderService
+    participant PaymentGateway
+    Customer->>WebApp: Submit order
+    WebApp->>OrderService: POST /orders
+    OrderService->>PaymentGateway: Charge card
+    PaymentGateway-->>OrderService: Confirmed
+    OrderService-->>WebApp: Created (id)</code></pre>
+  </section>
+
+  <section>
+    <h2>Troubleshooting & limits</h2>
+    <p><strong>Large diagrams and Kroki GET URL limit:</strong> Kroki’s default maximum URI length for GET is typically <code>4096</code> characters. Very large or complex diagrams may exceed this when encoded for a GET request. If you encounter failures or broken images:</p>
+    <ul>
+      <li>Shorten the diagram source (remove comments / front-matter or simplify identifiers).</li>
+      <li>Use a self-hosted Kroki with a higher configured URI limit.</li>
+      <li>If you control a server-side proxy, perform a POST to Kroki (<code>/ &lt;type &gt; /svg</code>) and return the SVG — note: Forge UI may restrict direct external POSTs due to CSP.</li>
+    </ul>
+
+    <p class="muted">If a diagram fails to render, check browser console for errors and open a support issue with a minimal reproducer.</p>
+  </section>
+
+  <section>
+    <h2>Security & privacy</h2>
+    <p>DiagramForge does not collect analytics or store diagram source. Source is forwarded to the configured Kroki endpoint at render time. See the full privacy policy and terms:</p>
+    <ul>
+      <li><a href="/diagramforge-support/privacy.html">Privacy Policy</a></li>
+      <li><a href="/diagramforge-support/terms.html">Terms of Service</a></li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Support</h2>
+    <p>Report issues or request help on GitHub Issues:</p>
+    <pre><code>https://github.com/ddolbenovs/diagramforge-support/issues</code></pre>
+    <p>Expected response time: 48 business hours. For enterprise customers, private support channels can be arranged per agreement.</p>
+  </section>
+
+  <footer>
+    <div>© ddolbenovs — DiagramForge. Last updated: 2025-10-31</div>
+  </footer>
+</body>
+</html>
